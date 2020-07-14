@@ -1,8 +1,11 @@
 from .models import Article
-from .serializers import ArticleSerializer
+from django.contrib.auth.models import User
+from .serializers import ArticleSerializer, UserSerializer
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view
+from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
  
  
@@ -27,18 +30,15 @@ class ArticleAPIView(APIView):
  
  
 class ArticleDetails(APIView):
- 
-    def get_object(self, id):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, id):
         try:
-            return Article.objects.get(id=id)
+            article = Article.objects.get(id=id)
+            serializer = ArticleSerializer(article)
+            return Response(serializer.data)
         except Article.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
- 
- 
-    def get(self, request, id):
-        article = self.get_object(id)
-        serializer = ArticleSerializer(article)
-        return Response(serializer.data)
  
  
  
@@ -56,85 +56,44 @@ class ArticleDetails(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-
-'''
-### GENERIC VIEWS
-
-from rest_framework import generics
-from rest_framework import mixins
+class UserAPIView(APIView):
  
- 
- 
-class ArticleAPIView(generics.GenericAPIView, mixins.ListModelMixin, mixins.CreateModelMixin,
-                     mixins.UpdateModelMixin, mixins.RetrieveModelMixin,
-                     mixins.DestroyModelMixin):
-    serializer_class = ArticleSerializer
-    queryset = Article.objects.all()
-    lookup_field = 'id'
-  
- 
-    def get(self, request, id=None):
-
-        if id:
-            return self.retrieve(request)
-        else:
-            print(f'joalala {id}')
-            return self.list(request)
- 
-    def post(self, request):
-        return self.create(request)
- 
-    def put(self, request, id=None):
-        return self.update(request, id)
- 
-    def delete(self, request, id):
-        return self.destroy(request, id)
- 
-
-### FUNCTION_BASED VIEWS
-
-@api_view(['GET', 'POST'])
-def article_list(request):
-    """
-    List all articles, or create a new article.
-    """
-    if request.method == 'GET':
-        articles = Article.objects.all()
-        serializer = ArticleSerializer(articles, many=True)
+    def get(self, request):
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
  
-    elif request.method == 'POST':
-        serializer = ArticleSerializer(data=request.data)
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserProfile(APIView):
+ 
+    def get_object(self, id):
+        try:
+            return User.objects.get(id=id)
+        except User.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
  
  
- 
- 
-@api_view(['GET', 'PUT', 'DELETE'])
-def article_detail(request, pk):
-    """
-    Retrieve, update or delete article.
-    """
-    try:
-        article = Article.objects.get(pk=pk)
-    except Article.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
- 
-    if request.method == 'GET':
-        serializer = ArticleSerializer(article)
+    def get(self, request, id):
+        user = self.get_object(id)
+        serializer = UserSerializer(user)
         return Response(serializer.data)
  
-    elif request.method == 'PUT':
-        serializer = ArticleSerializer(article, data=request.data)
+    def put(self, request,id):
+        user = self.get_object(id)
+        serializer = UserSerializer(user, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
  
-    elif request.method == 'DELETE':
-        article.delete()
+    def delete(self, request, id):
+        user = self.get_object(id)
+        user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-'''
